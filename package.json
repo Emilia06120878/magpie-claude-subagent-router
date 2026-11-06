@@ -1,0 +1,70 @@
+{
+  "name": "magpie-claude-subagent-router",
+  "version": "0.1.0",
+  "description": "A global multi-model subagent pool for Claude Code in Magpie",
+  "author": "Emilia06120878",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Emilia06120878/magpie-claude-subagent-router.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Emilia06120878/magpie-claude-subagent-router/issues"
+  },
+  "homepage": "https://github.com/Emilia06120878/magpie-claude-subagent-router#readme",
+  "license": "MIT",
+  "type": "module",
+  "main": "./index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage test/*.test.js"
+  },
+  "files": [
+    "index.js",
+    "hook.js",
+    "uninstall-hook.js",
+    "lib/",
+    "icon.svg",
+    "page/app.js",
+    "page/icon.svg",
+    "page/index.html",
+    "page/style.css",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "magpie",
+    "magpie-plugin",
+    "claude-code",
+    "subagents"
+  ],
+  "magpie": {
+    "name": "Claude Subagent Router",
+    "summary": {
+      "en": "Route Claude Code delegation through a multi-model subagent pool with per-model responsibilities.",
+      "zh": "为 Claude Code 配置多模型子代理池，按职责分流默认委派，并保留原生并行调度。"
+    },
+    "icon": "https://raw.githubusercontent.com/Emilia06120878/magpie-claude-subagent-router/main/icon.svg",
+    "page": {
+      "title": "Claude Subagent Router",
+      "titles": {
+        "zh": "Claude 子代理路由"
+      },
+      "file": "page/index.html",
+      "icon": "page/icon.svg"
+    },
+    "actions": [
+      {
+        "id": "configure-claude-subagents",
+        "menu": "agent",
+        "title": "Claude Subagent Router",
+        "titles": {
+          "zh": "配置 Claude 子代理路由"
+        }
+      }
+    ]
+  }
+}
