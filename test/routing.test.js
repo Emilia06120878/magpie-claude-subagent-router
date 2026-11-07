@@ -41,13 +41,19 @@ test("strict routing intercepts omitted and general-purpose delegation only", (t
   }
 });
 
-test("default delegation cannot bypass the router with a non-pool model", (t) => {
+test("default delegation cannot bypass the router with direct Claude models", (t) => {
   const { route } = activeRoute(t);
   for (const toolInput of [
     { model: "claude-sonnet" },
     { subagent_type: "general-purpose", model: "claude-sonnet" },
     { model: "sonnet" },
     { model: "claude-sonnet-4-5" },
+    { model: "claude-opus" },
+    { model: "claude-haiku" },
+    { model: "opus" },
+    { model: "haiku" },
+    { model: "claude-opus-4-5" },
+    { model: "claude-haiku-4-5" },
   ]) {
     const result = routingDecision(toolInput, route);
     assert.equal(result.hookSpecificOutput.permissionDecision, "deny");

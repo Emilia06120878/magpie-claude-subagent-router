@@ -14,6 +14,7 @@
 - 插件页面和子代理职责说明支持中英文。
 - 保留 Magpie 原有 Subagent 单模型默认值；生成的具名子代理仅覆盖自身模型。
 - 模型池生效时接管默认委派，要求 Claude 从具名模型池选择；支持严格和宽松两种模式。
+- 配置 N 个模型后，路由池就有 N 个可选模型。主 Claude 自身模型不计入其中；默认子委派不额外提供直接的 Claude Sonnet、Opus、Haiku 或其他池外模型选项。具名自定义子代理仍可保留自身模型选择。
 - 清空模型池后移除本插件生成且未被修改的定义，停止路由干预，恢复原有单模型行为。
 
 ## 环境与兼容性
@@ -64,7 +65,7 @@ magpie plugin add .\magpie-claude-subagent-router
 3. 点击应用时，页面将规范化后的全局模型池保存到插件自身 options，Magpie 随后重载宿主。
 4. 每个模型生成一个稳定名称的 `<claude-config-dir>/agents/<name>.md`，通过 frontmatter 中的 `model` 保留完整模型引用，通过 `description` 向 Claude 提供中英文职责说明。
 5. Claude Code 原生 Agent/Task 机制负责子代理执行和并行调度，请求继续经由 Magpie 的既有模型路由。不会创建独立的模型客户端或额外评审模型。
-6. 插件向 Claude Code 用户级 `settings.json` 添加两个带唯一命令路径的 Hook。`SessionStart` 在新会话注入当前模型池及选择规则，要求父 Claude 第一次委派就明确选择 `router-*`；`PreToolUse` 匹配 `Agent|Task` 并兜底拦截默认渠道。两者均从 `agents/.claude-subagent-router-route.json` 读取本次成功生成的代理名单。严格模式拦截省略类型和显式 `general-purpose`，宽松模式仅拦截省略类型。默认或 `general-purpose` 委派显式指定池外 `model`（包括 `claude-sonnet`）也会被拒绝，不能绕过路由；应省略 `model` 字段并选择池内具名子代理，由该定义提供实际模型。显式指定池内模型引用或 `inherit` 仍然允许。拒绝原因把可选名称和职责反馈给父 Claude，由 Claude 选择后重试，不擅自选择模型。
+6. 插件向 Claude Code 用户级 `settings.json` 添加两个带唯一命令路径的 Hook。`SessionStart` 在新会话注入当前模型池及选择规则，要求父 Claude 第一次委派就明确选择 `router-*`；`PreToolUse` 匹配 `Agent|Task` 并兜底拦截默认渠道。两者均从 `agents/.claude-subagent-router-route.json` 读取本次成功生成的代理名单。严格模式拦截省略类型和显式 `general-purpose`，宽松模式仅拦截省略类型。默认或 `general-purpose` 委派显式指定池外 `model`（包括直接的 Claude `claude-sonnet`、`claude-opus`、`claude-haiku` 引用）也会被拒绝，不能绕过路由；应省略 `model` 字段并选择池内具名子代理，由该定义提供实际模型。显式指定池内模型引用或 `inherit` 仍然允许。拒绝原因把可选名称和职责反馈给父 Claude，由 Claude 选择后重试，不擅自选择模型。
 7. 显式 `router-*`、Explore、Plan 和其他自定义子代理正常放行；池外 `model` 的限制仅适用于默认或 `general-purpose` 委派，自定义子代理保留自身模型选择。空池时 SessionStart 不注入指令，PreToolUse 不拦截；路由文件缺失或损坏、Hook 异常时也完全不干预。Hook 不写日志，不发送网络请求，也不自动批准权限。
 8. 子代理定义中的模型优先于 Magpie 原有的 `CLAUDE_CODE_SUBAGENT_MODEL` 默认值；未指定该字段的子代理仍遵循原有优先级。
 

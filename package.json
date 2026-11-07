@@ -1,6 +1,6 @@
 {
   "name": "magpie-claude-subagent-router",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A global multi-model subagent pool for Claude Code in Magpie",
   "author": "Emilia06120878",
   "repository": {
