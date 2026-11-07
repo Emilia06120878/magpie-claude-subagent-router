@@ -41,6 +41,32 @@ test("strict routing intercepts omitted and general-purpose delegation only", (t
   }
 });
 
+test("default delegation cannot bypass the router with a non-pool model", (t) => {
+  const { route } = activeRoute(t);
+  for (const toolInput of [
+    { model: "claude-sonnet" },
+    { subagent_type: "general-purpose", model: "claude-sonnet" },
+    { model: "sonnet" },
+    { model: "claude-sonnet-4-5" },
+  ]) {
+    const result = routingDecision(toolInput, route);
+    assert.equal(result.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(result.hookSpecificOutput.permissionDecisionReason, /Remove the model field/);
+    assert.match(result.hookSpecificOutput.permissionDecisionReason, /provider\/fast/);
+    assert.equal(result.hookSpecificOutput.updatedInput, undefined);
+  }
+  for (const model of ["inherit", "provider/fast", "group/reasoning[1m]"]) {
+    assert.equal(routingDecision({ subagent_type: "general-purpose", model }, { ...route, mode: "prefer" }), null);
+  }
+  for (const toolInput of [
+    { subagent_type: "custom-agent", model: "claude-sonnet" },
+    { subagent_type: agentName("provider/fast"), model: "claude-sonnet" },
+    { subagent_type: "custom-agent" },
+  ]) {
+    assert.equal(routingDecision(toolInput, route), null);
+  }
+});
+
 test("prefer mode allows explicit general-purpose; empty or invalid state fails open", (t) => {
   const { dir, route } = activeRoute(t);
   const prefer = { ...route, mode: "prefer" };
