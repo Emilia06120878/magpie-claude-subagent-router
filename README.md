@@ -14,7 +14,7 @@
 - 插件页面和子代理职责说明支持中英文。
 - 保留 Magpie 原有 Subagent 单模型默认值；生成的具名子代理仅覆盖自身模型。
 - 模型池生效时接管默认委派，要求 Claude 从具名模型池选择；支持严格和宽松两种模式。
-- 配置 N 个模型后，路由池就有 N 个可选模型。主 Claude 自身模型不计入其中；默认子委派不额外提供直接的 Claude Sonnet、Opus、Haiku 或其他池外模型选项。具名自定义子代理仍可保留自身模型选择。
+- 配置 N 个模型后，路由池就有 N 个可选模型。主 Claude 自身模型不计入其中；默认子委派不额外提供直接的 Claude Sonnet、Opus、Haiku 或其他池外模型选项。严格模式拒绝池外具名代理（包括 OMC 专家）；宽松模式保留显式具名代理的自身模型选择。
 - 清空模型池后移除本插件生成且未被修改的定义，停止路由干预，恢复原有单模型行为。
 
 ## 与 Agent 团队插件协作
@@ -22,11 +22,11 @@
 本插件可以独立使用，**不需要安装 OMC 或其他 Agent 团队插件**。它为 Claude Code 原生 Agent/Task 委派补充的是“选择哪个模型、适合什么职责”这一层；任务如何拆解、代理如何协作、结果如何验收，仍由 Claude Code 或你使用的团队工作流负责。
 
 - **只使用 Claude Code：** 主 Claude 可以从模型池选择不同模型分别探索、实现和审查，独立任务可并行执行，最后由主 Claude 综合结果。
-- **使用 OMC 等 Agent 团队插件时：** 团队插件继续提供专家角色、任务编排和验证流程；本插件提供 `router-*` 具名模型代理，可补充按模型能力分工的并行探索、实现和评审。例如让快速模型整理线索，让推理模型分析方案，再让另一模型独立审查。
-- **保留各自职责：** OMC 的 `oh-my-claudecode:executor`、`oh-my-claudecode:code-reviewer` 等专家代理有自己的提示词、职责和模型档位，本插件不会重写或替换它们，也不会保证 OMC 的团队任务自动进入 `router-*` 模型池。需要多模型参与时，应在团队工作流中明确选择相应的 `router-*` 代理。
-- **可组合而非绑定：** 其他依赖 Claude Code Agent/Task 的插件也可保留自身代理，同时使用本模型池；具体协作方式取决于该插件如何发起委派。所有任务仍由 Magpie 的既有提供商路由处理。
+- **使用 OMC 等 Agent 团队插件时：** 严格模式把 OMC 的具名专家视为池外代理并拒绝其委派，返回职责匹配的 `router-*` 候选，由 Claude 把原专家职责写入新代理的任务提示词。OMC 原生的多阶段团队流程不能完整保留；继续完整使用 OMC 工作流时，请切换到宽松模式。
+- **为什么拒绝而不是覆盖模型：** OMC 的 `oh-my-claudecode:executor`、`oh-my-claudecode:code-reviewer` 等代理定义 pin 了 `sonnet`、`opus` 或 `haiku`。代理定义的 `model` 优先于调用时的覆盖值，而 Hook 收到的调用常常没有 `model` 字段，因此不能只改调用参数就保证模型生效。本插件不修改 OMC 文件；严格模式通过拒绝池外具名类型，确保实际启动的代理来自模型池。
+- **两种模式各有边界：** 严格模式允许同一模型池内的 `router-*` 代理；`inherit` 不会改变这一限制。宽松模式只接管默认委派，显式 `general-purpose` 和具名自定义代理保留自身模型，因此不承诺 OMC 一定使用模型池。所有任务仍由 Magpie 的既有提供商路由处理。
 
-因此，本插件与 OMC 一类插件的关系是**模型选择与团队协作互补**，而不是替代、依赖或自动接管。
+因此，本插件与 OMC 一类插件的关系是**模型路由与专家工作流之间的明确模式选择**：严格模式优先模型池，宽松模式优先保留具名专家工作流。
 
 ## 环境与兼容性
 
@@ -61,7 +61,7 @@ magpie plugin add .\magpie-claude-subagent-router
 1. 先在 Magpie 中配置提供商、路由组和 Claude Code，并应用 Agent 设置。
 2. 在 Magpie 侧边栏打开 **Claude Subagent Router**，或从 Agents 页面中 Claude Code 的菜单打开配置页。
 3. 勾选模型；按需为每个模型勾选职责标签。
-4. 选择默认委派模式：**严格**会拦截省略类型及显式 `general-purpose` 的 Agent/Task 调用，要求改选模型池；**宽松**只拦截省略类型的调用，允许显式 `general-purpose`。
+4. 选择默认委派模式：**严格**要求所有 Agent/Task 委派使用生成的 `router-*` 代理，包括省略类型、显式 `general-purpose`、OMC 专家和其他池外具名类型；拒绝原因会按职责优先列出候选。**宽松**只拦截省略类型的调用，允许显式 `general-purpose` 和具名自定义代理。
 5. 点击**应用**。宿主重载后生成子代理定义、更新动态路由状态，并安装 Claude Code `SessionStart` 与 `PreToolUse` Hook。
 6. 启动新的 Claude Code 会话，确认具名子代理和 Hook 已加载。Claude 可使用一个子代理，也可并行调用多个；它也可以不委派。
 
@@ -76,8 +76,8 @@ magpie plugin add .\magpie-claude-subagent-router
 3. 点击应用时，页面将规范化后的全局模型池保存到插件自身 options，Magpie 随后重载宿主。
 4. 每个模型生成一个稳定名称的 `<claude-config-dir>/agents/<name>.md`，通过 frontmatter 中的 `model` 保留完整模型引用，通过 `description` 向 Claude 提供中英文职责说明。
 5. Claude Code 原生 Agent/Task 机制负责子代理执行和并行调度，请求继续经由 Magpie 的既有模型路由。不会创建独立的模型客户端或额外评审模型。
-6. 插件向 Claude Code 用户级 `settings.json` 添加两个带唯一命令路径的 Hook。`SessionStart` 在新会话注入当前模型池及选择规则，要求父 Claude 第一次委派就明确选择 `router-*`；`PreToolUse` 匹配 `Agent|Task` 并兜底拦截默认渠道。两者均从 `agents/.claude-subagent-router-route.json` 读取本次成功生成的代理名单。严格模式拦截省略类型和显式 `general-purpose`，宽松模式仅拦截省略类型。默认或 `general-purpose` 委派显式指定池外 `model`（包括直接的 Claude `claude-sonnet`、`claude-opus`、`claude-haiku` 引用）也会被拒绝，不能绕过路由；应省略 `model` 字段并选择池内具名子代理，由该定义提供实际模型。显式指定池内模型引用或 `inherit` 仍然允许。拒绝原因把可选名称和职责反馈给父 Claude，由 Claude 选择后重试，不擅自选择模型。
-7. 显式 `router-*`、Explore、Plan 和其他自定义子代理正常放行；池外 `model` 的限制仅适用于默认或 `general-purpose` 委派，自定义子代理保留自身模型选择。空池时 SessionStart 不注入指令，PreToolUse 不拦截；路由文件缺失或损坏、Hook 异常时也完全不干预。Hook 不写日志，不发送网络请求，也不自动批准权限。
+6. 插件向 Claude Code 用户级 `settings.json` 添加两个带唯一命令路径的 Hook。`SessionStart` 在新会话注入当前模型池及选择规则，要求父 Claude 第一次委派就明确选择 `router-*`；`PreToolUse` 匹配 `Agent|Task` 并兜底拦截默认渠道。两者均从 `agents/.claude-subagent-router-route.json` 读取本次成功生成的代理名单。严格模式拦截省略类型、显式 `general-purpose` 和所有池外具名类型（包括 OMC 专家），宽松模式仅拦截省略类型。显式指定池外 `model`（包括直接的 Claude `claude-sonnet`、`claude-opus`、`claude-haiku` 引用）也会被拒绝，不能绕过路由；应省略 `model` 字段并选择池内具名子代理，由该定义提供实际模型。其他池内模型引用及 `inherit` 仅允许用于生成的具名代理。拒绝原因把可选名称和职责反馈给父 Claude，由 Claude 选择后重试，不擅自选择模型。
+7. 生成的 `router-*` 正常放行；严格模式拒绝 Explore、Plan 和其他自定义子代理，宽松模式保留这些具名类型。空池时 SessionStart 不注入指令，PreToolUse 不拦截；路由文件缺失或损坏、Hook 异常时也完全不干预。Hook 不写日志，不发送网络请求，也不自动批准权限。
 8. 子代理定义中的模型优先于 Magpie 原有的 `CLAUDE_CODE_SUBAGENT_MODEL` 默认值；未指定该字段的子代理仍遵循原有优先级。
 
 本插件提供独立页面，不替换 Magpie 原生“档位 → Subagent”单选控件。
