@@ -11,6 +11,8 @@ export class FakeElement {
     this.checked = false;
     this.value = "";
     this.textContent = "";
+    this.style = { setProperty: (key, value) => { this.attributes[`style-${key}`] = value; } };
+    this.placeholder = "";
     this.className = "";
   }
 

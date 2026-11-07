@@ -17,6 +17,17 @@ Only Claude Code is supported. Other agents are unchanged, and the plugin never 
 - Configuring N models gives the routing pool N choices. The parent Claude model is separate; default delegation does not add direct Claude Sonnet, Opus, Haiku, or other non-pool model options. Named custom agents retain their own model selection.
 - Clear the pool to remove the plugin's untouched definitions, stop routing intervention, and restore the original single-model behavior.
 
+## Working with agent team plugins
+
+This plugin works independently; **OMC or another agent team plugin is not required**. It adds model selection and responsibility guidance to Claude Code's native Agent/Task delegation. Task decomposition, team coordination, and acceptance remain the responsibility of Claude Code or the team workflow you choose.
+
+- **Claude Code alone:** parent Claude can assign exploration, implementation, and review to different models, run independent tasks in parallel, and synthesize the results.
+- **With OMC or similar agent team plugins:** the team plugin continues to provide specialist roles, orchestration, and verification. This plugin adds `router-*` model agents for parallel exploration, implementation, and independent review based on model strengths—for example, a fast model gathering evidence, a reasoning model evaluating a design, and another model reviewing the result.
+- **Roles remain distinct:** OMC specialists such as `oh-my-claudecode:executor` and `oh-my-claudecode:code-reviewer` retain their own prompts, responsibilities, and model tiers. This plugin neither replaces them nor guarantees that OMC team tasks automatically use `router-*`. Select the relevant `router-*` agents explicitly when a team workflow needs this model pool.
+- **Composable, not coupled:** other plugins built on Claude Code Agent/Task can retain their own agents alongside this pool. How they cooperate depends on how each plugin initiates delegation. All tasks continue through Magpie's configured provider routing.
+
+The relationship is **model selection complementing team coordination**, not replacement, a dependency, or automatic takeover.
+
 ## Requirements and compatibility
 
 - Windows 10/11.

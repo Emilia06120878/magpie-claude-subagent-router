@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,57 +10,60 @@
   <div class="shell">
     <header class="hero">
       <div class="heading">
-        <img src="icon.svg" alt="" width="38" height="38">
+        <div class="brand-mark"><img src="icon.svg" alt="" width="30" height="30"></div>
         <div>
-          <div class="eyebrow">MAGPIE · CLAUDE CODE</div>
+          <div class="eyebrow">MAGPIE <span>/</span> CLAUDE CODE</div>
           <h1 id="title">Claude Subagent Router</h1>
           <p id="subtitle" class="subtitle"></p>
         </div>
       </div>
-      <span id="language" class="language"></span>
+      <div id="router-status" class="router-status"><span class="status-dot"></span><span id="router-status-text"></span></div>
     </header>
 
     <section class="summary" aria-label="Status">
-      <div><strong id="selected-count">0</strong><span id="selected-label"></span></div>
-      <div><strong id="agent-count">0</strong><span id="agent-label"></span></div>
-      <div><strong id="catalog-count">0</strong><span id="catalog-label"></span></div>
+      <div class="stat"><span class="stat-icon pool-icon" aria-hidden="true">◈</span><div><strong id="selected-count">0</strong><span id="selected-label"></span></div></div>
+      <div class="stat"><span class="stat-icon ready-icon" aria-hidden="true">✓</span><div><strong id="agent-count">0</strong><span id="agent-label"></span></div></div>
+      <div class="stat"><span class="stat-icon coverage-icon" aria-hidden="true">⌘</span><div><strong id="coverage-count">0<span class="stat-total">/6</span></strong><span id="coverage-label"></span></div></div>
+      <div class="stat"><span class="stat-icon catalog-icon" aria-hidden="true">▤</span><div><strong id="catalog-count">0</strong><span id="catalog-label"></span></div></div>
     </section>
 
     <section class="routing-options">
-      <label for="routing-mode" id="routing-mode-label"></label>
-      <select id="routing-mode">
-        <option value="strict"></option>
-        <option value="prefer"></option>
-      </select>
-      <span id="routing-mode-help"></span>
-    </section>
-
-    <section class="toolbar">
-      <label class="search">
-        <span class="sr-only" id="search-label"></span>
-        <input id="search" type="search" autocomplete="off" spellcheck="false">
-      </label>
-      <div class="segmented" role="group" aria-label="Model filter">
-        <button id="filter-all" type="button" aria-pressed="true"></button>
-        <button id="filter-selected" type="button" aria-pressed="false"></button>
-      </div>
-      <button id="clear" class="quiet" type="button"></button>
+      <div class="routing-symbol" aria-hidden="true">⑂</div>
+      <div class="routing-copy"><label for="routing-mode" id="routing-mode-label"></label><span id="routing-mode-help"></span></div>
+      <select id="routing-mode"><option value="strict"></option><option value="prefer"></option></select>
     </section>
 
     <div id="notice" class="notice" hidden role="status"></div>
-    <main id="models" class="models" aria-live="polite"></main>
-    <div id="empty" class="empty" hidden>
-      <strong id="empty-title"></strong>
-      <p id="empty-text"></p>
+
+    <div class="workspace">
+      <main class="pool-panel">
+        <div class="section-heading"><div><span class="section-kicker" id="pool-kicker"></span><h2 id="pool-title"></h2></div><span id="pool-count" class="pool-count"></span></div>
+        <section class="toolbar">
+          <label class="search"><span aria-hidden="true">⌕</span><span class="sr-only" id="search-label"></span><input id="search" type="search" autocomplete="off" spellcheck="false"></label>
+          <div class="segmented" role="group" aria-label="Model filter"><button id="filter-all" type="button" aria-pressed="true"></button><button id="filter-selected" type="button" aria-pressed="false"></button></div>
+        </section>
+        <main id="models" class="models" aria-live="polite"></main>
+        <div id="empty" class="empty" hidden><span class="empty-symbol" aria-hidden="true">⌕</span><strong id="empty-title"></strong><p id="empty-text"></p></div>
+      </main>
+
+      <aside class="side-panel">
+        <section class="coverage-panel">
+          <div class="side-heading"><h2 id="coverage-title"></h2><span id="coverage-fraction"></span></div>
+          <p id="coverage-help" class="side-help"></p>
+          <div id="coverage-list" class="coverage-list"></div>
+        </section>
+        <section class="how-panel">
+          <span class="section-kicker" id="workflow-kicker"></span>
+          <h2 id="workflow-title"></h2>
+          <ol id="workflow-list" class="workflow-list"></ol>
+        </section>
+      </aside>
     </div>
 
     <footer class="footer">
       <p id="help" class="help"></p>
-      <div class="actions">
-        <span id="save-status" class="save-status" role="status"></span>
-        <button id="reset" class="quiet" type="button"></button>
-        <button id="apply" class="primary" type="button"></button>
-      </div>
+      <div class="actions"><button id="clear" class="quiet" type="button"></button><span class="action-divider"></span><button id="reset" class="quiet" type="button"></button><button id="apply" class="primary" type="button"></button></div>
+      <span id="save-status" class="save-status" role="status"></span>
     </footer>
   </div>
   <script src="_magpie/bridge.js"></script>

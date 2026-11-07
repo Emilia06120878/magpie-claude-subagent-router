@@ -1,249 +1,258 @@
+/* global magpie */
 (() => {
   "use strict";
 
+  const $ = (id) => document.getElementById(id);
   const ROLE_IDS = ["fast", "reasoning", "implementation", "review", "research", "general"];
+  const ROLE_COLORS = { fast: "#8f7550", reasoning: "#766ba5", implementation: "#628d81", review: "#b07665", research: "#65899b", general: "#7d8b74" };
   const I18N = {
     en: {
       title: "Claude Subagent Router",
-      subtitle: "A global model pool for Claude Code. Assign optional responsibilities; Claude chooses whether to delegate, which agents to use, and whether to run them in parallel.",
-      selected: "selected models",
-      agents: "generated agents",
-      available: "available models",
-      search: "Search models",
-      searchLabel: "Search models",
-      all: "All models",
-      selectedOnly: "Selected",
-      clear: "Clear pool",
-      reset: "Discard changes",
-      apply: "Apply",
-      applying: "Applying…",
-      saved: "Applied",
-      dirty: "Unsaved changes",
-      noModels: "No Magpie model catalog found",
-      noModelsText: "Configure Claude Code in Magpie and apply its agent settings, then reopen this page. Existing generated agents are preserved when the catalog is unavailable.",
-      noResults: "No matching models",
-      noResultsText: "Change the search or show all models.",
-      noSelection: "The model pool is empty",
-      noSelectionText: "Select one or more models, or apply the empty pool to restore Magpie's original single-model Subagent behavior.",
-      roles: "Optional responsibilities",
-      missing: "Not in current catalog",
-      conflict: "Same-name user files were preserved",
-      modified: "Manually edited agents were preserved",
-      stale: "Unavailable selections were not generated",
-      catalogError: "The model catalog could not be read. Existing agent files were not changed.",
-      saveError: "Could not apply the configuration",
-      help: "Each selected model becomes one named Claude Code subagent. No responsibility tags means no preference is added. Generated agents override only their own model; Magpie's original Subagent default remains unchanged.",
-      retry: "Retry",
-      fast: "Fast execution",
-      reasoning: "Complex reasoning",
-      implementation: "Code implementation",
-      review: "Code review",
-      research: "Exploration and research",
-      general: "General tasks",
+      subtitle: "A considered model for every task. Build your delegation pool, then let Claude orchestrate the work.",
+      active: "Router active", configured: "Router configured", inactive: "Router inactive", issues: "Attention needed",
+      selected: "Models in pool", agents: "Ready to delegate", catalog: "Available models", coverage: "Roles covered",
       routingMode: "Default delegation",
-      strict: "Strict — always use the pool",
-      prefer: "Prefer — allow explicit general-purpose",
-      routingModeHelp: "While the pool is active, unnamed Agent/Task calls must choose a router. Other built-in and custom agents are unchanged. A new Claude Code session is required to load the routing hook.",
-      hookError: "The routing hook could not be installed. Model definitions were synced, but default delegation was not changed.",
+      routingModeHelp: "Route unnamed Agent/Task calls through your model pool. Built-in and custom agents keep their own behavior.",
+      strict: "Strict · pool required", prefer: "Prefer · allow general-purpose",
+      poolKicker: "YOUR MODEL ECOSYSTEM", poolTitle: "Delegation pool", modelsUnit: "models",
+      searchLabel: "Search models", search: "Search models or model IDs…", all: "All models", selectedOnly: "Selected",
+      clear: "Clear pool", reset: "Discard changes", apply: "Apply configuration", applying: "Applying…", saved: "Configuration applied",
+      unsaved: "Unsaved changes", saveError: "Could not apply",
+      help: "Changes take effect in a new Claude Code session. No task content is sent by this page.",
+      empty: "No matching models", emptyText: "Try another search, or show all models in the catalog.",
+      noModels: "Your model catalog is empty", noModelsText: "Configure Claude Code's model picker in Magpie, then reopen this page.",
+      coverageTitle: "Responsibility map", coverageHelp: "Assign roles to guide Claude's delegation. Each model can cover more than one.",
+      covered: "covered", unassigned: "Not assigned", selectToAssign: "Select a model to assign roles",
+      workflowKicker: "NATIVE CLAUDE CODE", workflowTitle: "One pool. Parallel possibilities.",
+      workflow: ["Claude chooses the right model for each task.", "Independent tasks can run in parallel.", "Claude reviews and synthesizes the results."],
+      catalogError: "The model catalog is unavailable. Your existing agent definitions are preserved.",
+      hookError: "The routing hook could not be installed. Check the Claude Code settings file.",
+      conflict: "Name conflict; not routed", modified: "Manually edited; not routed", stale: "Not in current catalog; preserved",
+      errors: "Some models need attention. Only conflict-free, unmodified agents enter the active routing pool.",
+      added: "Added to pool", inPool: "In pool", add: "Add model", modelId: "Model ID", rolesLabel: "Responsibilities",
+      noRoles: "No roles assigned", optionalRoles: "Optional · select all that apply",
+      generalNote: "For broad tasks without a narrow specialty.",
+      fast: "Fast execution", reasoning: "Complex reasoning", implementation: "Code implementation", review: "Code review", research: "Exploration & research", general: "General tasks",
+      language: "中文",
     },
     zh: {
       title: "Claude 子代理路由",
-      subtitle: "为 Claude Code 配置全局模型池。职责标签可选；Claude 自主决定是否委派、选择哪些子代理，以及是否并行运行。",
-      selected: "个已选模型",
-      agents: "个已生成子代理",
-      available: "个可用模型",
-      search: "搜索模型名称或完整模型 ID",
-      searchLabel: "搜索模型",
-      all: "全部模型",
-      selectedOnly: "仅看已选",
-      clear: "清空模型池",
-      reset: "放弃更改",
-      apply: "应用",
-      applying: "正在应用…",
-      saved: "已应用",
-      dirty: "有未保存的更改",
-      noModels: "未找到 Magpie 模型目录",
-      noModelsText: "请先在 Magpie 中配置 Claude Code 并应用 Agent 设置，然后重新打开此页面。目录不可用时，已有子代理文件不会被更改。",
-      noResults: "没有匹配的模型",
-      noResultsText: "请更改搜索条件或查看全部模型。",
-      noSelection: "模型池为空",
-      noSelectionText: "选择一个或多个模型；应用空池将恢复 Magpie 原有的单模型 Subagent 行为。",
-      roles: "可选职责",
-      missing: "不在当前目录",
-      conflict: "同名用户文件已保留",
-      modified: "手动修改的子代理已保留",
-      stale: "不可用的已选模型未生成子代理",
-      catalogError: "模型目录读取失败，已有子代理文件未更改。",
-      saveError: "配置应用失败",
-      help: "每个已选模型生成一个具名 Claude Code 子代理。未选职责标签时不附加职责倾向。生成的子代理仅覆盖自身模型，Magpie 原有 Subagent 默认值保持不变。",
-      retry: "重试",
-      fast: "快速执行",
-      reasoning: "复杂推理",
-      implementation: "代码实现",
-      review: "代码审查",
-      research: "探索研究",
-      general: "通用任务",
+      subtitle: "让每项任务遇见合适的模型。构建你的委派模型池，由 Claude 自主分工、并行执行并综合结果。",
+      active: "路由已启用", configured: "路由已配置", inactive: "路由未启用", issues: "需要检查",
+      selected: "池内模型", agents: "可委派代理", catalog: "可选模型", coverage: "职责覆盖",
       routingMode: "默认委派",
-      strict: "严格——始终使用模型池",
-      prefer: "宽松——允许显式 general-purpose",
-      routingModeHelp: "模型池生效时，未指定类型的 Agent/Task 调用必须选择具名路由。其他内置和自定义子代理不受影响。需要新 Claude Code 会话加载路由 Hook。",
-      hookError: "路由 Hook 安装失败。子代理定义已同步，但默认委派未更改。",
+      routingModeHelp: "将未指定类型的 Agent/Task 调用引导至模型池；内置和自定义代理保持原有行为。",
+      strict: "严格 · 必须使用模型池", prefer: "宽松 · 允许 general-purpose",
+      poolKicker: "YOUR MODEL ECOSYSTEM", poolTitle: "委派模型池", modelsUnit: "个模型",
+      searchLabel: "搜索模型", search: "搜索模型名称或模型 ID…", all: "全部模型", selectedOnly: "已选模型",
+      clear: "清空模型池", reset: "放弃更改", apply: "应用配置", applying: "正在应用…", saved: "配置已应用",
+      unsaved: "有未保存的更改", saveError: "应用失败",
+      help: "配置在新的 Claude Code 会话中生效。此页面不会发送任务内容。",
+      empty: "没有匹配的模型", emptyText: "试试其他关键词，或返回查看完整模型目录。",
+      noModels: "模型目录为空", noModelsText: "请先在 Magpie 中配置 Claude Code 的模型选择器，再重新打开此页面。",
+      coverageTitle: "职责覆盖图", coverageHelp: "职责用于引导 Claude 选择代理；一个模型可承担多种职责。",
+      covered: "个模型", unassigned: "尚未分配", selectToAssign: "选中模型后即可分配职责",
+      workflowKicker: "NATIVE CLAUDE CODE", workflowTitle: "一个模型池，多种并行可能。",
+      workflow: ["Claude 按任务与职责选择合适的模型。", "相互独立的任务可以由多个代理并行完成。", "Claude 比较、评审并综合各代理的结果。"],
+      catalogError: "模型目录暂时不可用，已有子代理定义会被保留。",
+      hookError: "路由 Hook 安装失败，请检查 Claude Code 设置文件。",
+      conflict: "同名冲突，未加入路由", modified: "文件已手动修改，未加入路由", stale: "不在当前模型目录，定义已保留",
+      errors: "部分模型需要检查。只有无冲突且未修改的代理才会进入当前路由池。",
+      added: "已加入模型池", inPool: "池内模型", add: "加入模型池", modelId: "模型 ID", rolesLabel: "职责分配",
+      noRoles: "未指定职责", optionalRoles: "可多选 · 不选则不附加职责倾向",
+      generalNote: "适用于没有明确专业方向的一般任务。",
+      fast: "快速执行", reasoning: "复杂推理", implementation: "代码实现", review: "代码审查", research: "探索研究", general: "通用任务",
+      language: "EN",
     },
   };
 
-  const $ = (id) => document.getElementById(id);
   let lang = "en";
-  let catalog = [];
   let saved = { models: [], mode: "strict" };
-  let mode = "strict";
   let draft = new Map();
+  let mode = "strict";
+  let catalog = [];
+  let status = null;
+  let lastRevision = 0;
   let selectedOnly = false;
   let busy = false;
-  let lastRevision = globalThis.__CLAUDE_SUBAGENT_ROUTER_STATUS__?.revision || 0;
   let lastError = "";
   let justSaved = false;
-  const t = (key) => I18N[lang][key] ?? I18N.en[key] ?? key;
-
-  function node(tag, properties = {}, children = []) {
-    const element = document.createElement(tag);
-    for (const [key, value] of Object.entries(properties)) {
-      if (key === "text") element.textContent = value;
-      else if (key === "class") element.className = value;
-      else if (key === "hidden") element.hidden = value;
-      else element.setAttribute(key, value);
-    }
-    element.append(...children);
-    return element;
-  }
-
-  function setText(id, value) { $(id).textContent = value; }
-  function dirty() {
-    return mode !== saved.mode || JSON.stringify([...draft.values()].filter((row) => row.selected).map((row) => ({ model: row.model, roles: row.roles }))) !== JSON.stringify(saved.models);
-  }
-  function updateDirty() {
-    setText("save-status", busy ? t("applying") : lastError || (dirty() ? t("dirty") : justSaved ? t("saved") : ""));
-    $("apply").disabled = busy;
-    $("reset").disabled = busy || !dirty();
-  }
+  const t = (key) => I18N[lang][key] || key;
+  const setText = (id, text) => { $(id).textContent = text; };
+  const el = (tag, className, text) => {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
 
   function translate() {
     document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
     document.title = t("title");
-    for (const key of ["title", "subtitle", "clear", "reset", "apply", "help"]) setText(key, t(key));
-    setText("selected-label", t("selected"));
-    setText("agent-label", t("agents"));
-    setText("catalog-label", t("available"));
-    setText("filter-all", t("all"));
-    setText("filter-selected", t("selectedOnly"));
+    for (const key of ["title", "subtitle", "selected-label", "agent-label", "catalog-label", "coverage-label", "routing-mode-label", "routing-mode-help", "pool-kicker", "pool-title", "search-label", "clear", "reset", "help", "coverage-title", "coverage-help", "workflow-kicker", "workflow-title"]) {
+      const translations = {
+        "selected-label": "selected", "agent-label": "agents", "catalog-label": "catalog", "coverage-label": "coverage",
+        "routing-mode-label": "routingMode", "routing-mode-help": "routingModeHelp", "pool-kicker": "poolKicker", "pool-title": "poolTitle",
+        "search-label": "searchLabel", all: "all", selectedOnly: "selectedOnly", clear: "clear", reset: "reset", help: "help",
+        "coverage-title": "coverageTitle", "coverage-help": "coverageHelp", "workflow-kicker": "workflowKicker", "workflow-title": "workflowTitle",
+      };
+      setText(key, t(translations[key] || key));
+    }
     $("search").placeholder = t("search");
-    $("search").setAttribute("aria-label", t("search"));
-    setText("routing-mode-label", t("routingMode"));
-    setText("routing-mode-help", t("routingModeHelp"));
+    $("search").setAttribute("aria-label", t("searchLabel"));
     for (const option of $("routing-mode").children) option.textContent = t(option.value);
-    setText("language", lang === "zh" ? "中文" : "EN");
+    setText("filter-all", t("all"));
+    $("filter-all").setAttribute("aria-pressed", String(!selectedOnly));
+    $("filter-selected").setAttribute("aria-pressed", String(selectedOnly));
+    $("filter-all").className = selectedOnly ? "" : "active";
+    $("filter-selected").className = selectedOnly ? "active" : "";
+    $("apply").textContent = busy ? t("applying") : t("apply");
+    $("coverage-list").replaceChildren();
+    ROLE_IDS.forEach((id, index) => {
+      const count = [...draft.values()].filter((row) => row.selected && row.roles.includes(id)).length;
+      const row = el("div", `coverage-row${count ? " covered-role" : ""}`);
+      const name = el("div", "coverage-name");
+      name.append(el("span", "role-dot", String(index + 1).padStart(2, "0")), el("span", "", t(id)));
+      row.append(name, el("span", "coverage-number", count ? `${count} ${t("covered")}` : "—"));
+      $("coverage-list").append(row);
+    });
+    $("workflow-list").replaceChildren();
+    t("workflow").forEach((text, index) => {
+      const item = el("li");
+      item.append(el("span", "workflow-number", `0${index + 1}`), el("span", "", text));
+      $("workflow-list").append(item);
+    });
     render();
   }
 
-  function notice(messages) {
-    const text = messages.filter(Boolean).join(" ");
-    $("notice").textContent = text;
-    $("notice").hidden = !text;
+  function dirty() {
+    const current = [...draft.values()].filter((row) => row.selected).map((row) => ({ model: row.model, roles: [...row.roles] }));
+    return mode !== saved.mode || JSON.stringify(current) !== JSON.stringify(saved.models);
   }
 
-  function statusMessages() {
-    const status = globalThis.__CLAUDE_SUBAGENT_ROUTER_STATUS__;
-    if (!status) return [t("catalogError")];
-    const messages = [];
-    if (status?.catalog && !status.catalog.ok) messages.push(t("catalogError"));
-    if (status?.hook && !status.hook.ok) messages.push(t("hookError"));
-    if (status?.sync?.conflicts?.length) messages.push(`${t("conflict")}: ${status.sync.conflicts.join(", ")}`);
-    if (status?.sync?.modified?.length) messages.push(`${t("modified")}: ${status.sync.modified.join(", ")}`);
-    if (status?.sync?.stale?.length) messages.push(`${t("stale")}: ${status.sync.stale.join(", ")}`);
-    return messages;
+  function rowIssue(row) {
+    if (!row.selected || !saved.models.some((item) => item.model === row.model)) return "";
+    if (!status?.sync || !Array.isArray(status.issues)) return "";
+    return status.issues.find((item) => item.model === row.model)?.kind || "";
+  }
+
+  function modelProvider(model) {
+    const value = model.split("/")[0];
+    return value === "group" ? "ROUTING GROUP" : value === "auto" ? "AUTO ROUTE" : value.toUpperCase().slice(0, 22);
+  }
+
+  function modelLabel(row) {
+    const info = catalog.find((item) => item.model === row.model);
+    return info?.label || row.model;
+  }
+
+  function renderModel(row) {
+    const selected = row.selected;
+    const issue = rowIssue(row);
+    const card = el("article", `model${selected ? " selected" : ""}`);
+    const top = el("div", "model-top");
+    const mark = el("span", "model-monogram", modelLabel(row).replace(/[·[\]].*$/, "").trim().slice(0, 1).toUpperCase());
+    top.append(mark);
+    const content = el("div", "model-content");
+    const heading = el("div", "model-heading");
+    const label = el("h3", "model-label", modelLabel(row));
+    heading.append(label);
+    const check = el("input", "model-check");
+    check.type = "checkbox";
+    check.checked = selected;
+    check.disabled = busy;
+    check.setAttribute("aria-label", `${t("add")}: ${modelLabel(row)}`);
+    check.addEventListener("change", () => {
+      if (check.checked) draft.set(row.model, { model: row.model, roles: [], selected: true });
+      else draft.delete(row.model);
+      justSaved = false;
+      lastError = "";
+      translate();
+    });
+    heading.append(check);
+    content.append(heading, el("span", "model-provider", modelProvider(row.model)), el("code", "model-id", row.model));
+    top.append(content);
+    card.append(top);
+    if (selected) {
+      const roles = el("div", "roles-section");
+      const roleHeading = el("div", "roles-heading");
+      roleHeading.append(el("span", "roles-label", t("rolesLabel")), el("span", "roles-hint", t("optionalRoles")));
+      roles.append(roleHeading);
+      const list = el("div", "roles");
+      for (const id of ROLE_IDS) {
+        const role = el("label", `role role-${id}`);
+        role.style.setProperty("--role-color", ROLE_COLORS[id]);
+        const input = el("input");
+        input.type = "checkbox";
+        input.checked = row.roles.includes(id);
+        input.disabled = busy;
+        input.setAttribute("aria-label", t(id));
+        input.addEventListener("change", () => {
+          if (input.checked) row.roles.push(id);
+          else row.roles = row.roles.filter((value) => value !== id);
+          row.roles = ROLE_IDS.filter((value) => row.roles.includes(value));
+          justSaved = false;
+          lastError = "";
+          translate();
+        });
+        role.append(input, el("span", "", t(id)));
+        list.append(role);
+      }
+      roles.append(list);
+      card.append(roles);
+    }
+    if (issue) card.append(el("div", "model-warning", t(issue)));
+    return card;
   }
 
   function render() {
-    const query = $("search").value.trim().toLocaleLowerCase();
-    const selected = [...draft.values()].filter((row) => row.selected);
-    const merged = new Map(catalog.map((row) => [row.model, row]));
-    for (const row of selected) {
-      if (!merged.has(row.model)) merged.set(row.model, { model: row.model, label: row.model, missing: true });
-    }
-    const visible = [...merged.values()].filter((row) => {
-      if (selectedOnly && !draft.get(row.model)?.selected) return false;
-      return !query || `${row.label}\n${row.model}`.toLocaleLowerCase().includes(query);
-    });
-    setText("selected-count", String(selected.length));
+    const rows = [...catalog.map((item) => draft.get(item.model) || { model: item.model, roles: [], selected: false }), ...[...draft.values()].filter((row) => !catalog.some((item) => item.model === row.model))];
+    const query = $("search").value.trim().toLowerCase();
+    const visible = rows.filter((row) => (!selectedOnly || row.selected) && (!query || row.model.toLowerCase().includes(query) || modelLabel(row).toLowerCase().includes(query)));
+    const pool = [...draft.values()].filter((row) => row.selected);
+    setText("selected-count", String(pool.length));
+    setText("agent-count", String(status?.sync?.agents?.length ?? saved.models.length));
     setText("catalog-count", String(catalog.length));
-    setText("agent-count", String(globalThis.__CLAUDE_SUBAGENT_ROUTER_STATUS__?.sync?.agents?.length || 0));
-    $("clear").disabled = busy || !selected.length;
+    setText("coverage-count", String(ROLE_IDS.filter((id) => pool.some((row) => row.roles.includes(id))).length));
+    $("coverage-count").append(el("span", "stat-total", "/6"));
+    setText("pool-count", `${rows.length} ${t("modelsUnit")}`);
+    setText("coverage-fraction", `${ROLE_IDS.filter((id) => pool.some((row) => row.roles.includes(id))).length} / 6`);
+    setText("filter-selected", `${t("selectedOnly")} · ${pool.length}`);
+    const routingIssue = !status?.catalog?.ok || !status?.hook?.ok || (status?.sync?.conflicts?.length || status?.sync?.modified?.length);
+    setText("router-status-text", t(routingIssue ? "issues" : status?.sync?.agents?.length ? "active" : draft.size ? "configured" : "inactive"));
+    $("router-status").className = `router-status${routingIssue ? " warning" : draft.size ? " active" : ""}`;
+    $("models").replaceChildren(...visible.map(renderModel));
+    $("models").hidden = visible.length === 0;
+    $("empty").hidden = visible.length !== 0;
+    setText("empty-title", t(catalog.length ? "empty" : "noModels"));
+    setText("empty-text", t(catalog.length ? "emptyText" : "noModelsText"));
+    const messages = [];
+    if (lastError) messages.push(lastError);
+    else if (status && !status.catalog?.ok) messages.push(t("catalogError"));
+    if (status && !status.hook?.ok) messages.push(t("hookError"));
+    if (status?.sync?.conflicts?.length || status?.sync?.modified?.length) messages.push(t("errors"));
+    $("notice").hidden = messages.length === 0;
+    $("notice").textContent = messages.join(" ");
+    $("apply").disabled = busy;
+    $("reset").disabled = busy || !dirty();
+    $("clear").disabled = busy || draft.size === 0;
     $("routing-mode").disabled = busy;
     $("routing-mode").value = mode;
-    $("filter-all").setAttribute("aria-pressed", String(!selectedOnly));
-    $("filter-selected").setAttribute("aria-pressed", String(selectedOnly));
-    $("filter-selected").textContent = `${t("selectedOnly")} (${selected.length})`;
-    $("clear").title = t("help");
-
-    const list = $("models");
-    list.replaceChildren();
-    for (const model of visible) {
-      const current = draft.get(model.model) || { model: model.model, selected: false, roles: [] };
-      const checkbox = node("input", { type: "checkbox", class: "model-check", "aria-label": model.label });
-      checkbox.checked = current.selected;
-      checkbox.disabled = busy;
-      checkbox.addEventListener("change", () => {
-        justSaved = false;
-        lastError = "";
-        draft.set(model.model, { model: model.model, selected: checkbox.checked, roles: current.roles });
-        render();
-      });
-      const title = node("label", { class: "model-select" }, [
-        node("span", { class: "model-label", text: model.label }),
-        node("span", { class: "model-id", text: model.model + (model.missing ? ` · ${t("missing")}` : "") }),
-      ]);
-      title.prepend(checkbox);
-      const card = node("article", { class: `model${current.selected ? " selected" : ""}` }, [
-        node("div", { class: "model-top" }, [title]),
-      ]);
-      const roles = node("div", { class: "roles", "aria-label": t("roles") });
-      roles.hidden = !current.selected;
-      for (const id of ROLE_IDS) {
-        const role = node("input", { type: "checkbox" });
-        role.checked = current.roles.includes(id);
-        role.disabled = busy;
-        role.addEventListener("change", () => {
-          const latest = draft.get(model.model) || current;
-          const nextRoles = role.checked ? [...latest.roles, id] : latest.roles.filter((value) => value !== id);
-          justSaved = false;
-          lastError = "";
-          draft.set(model.model, { ...latest, selected: true, roles: ROLE_IDS.filter((value) => nextRoles.includes(value)) });
-          updateDirty();
-        });
-        roles.append(node("label", { class: "role" }, [role, node("span", { text: t(id) })]));
-      }
-      card.append(roles);
-      list.append(card);
-    }
-
-    const hasModels = merged.size > 0;
-    setText("empty-title", t(hasModels ? (selectedOnly && !selected.length ? "noSelection" : "noResults") : "noModels"));
-    setText("empty-text", t(hasModels ? (selectedOnly && !selected.length ? "noSelectionText" : "noResultsText") : "noModelsText"));
-    $("empty").hidden = visible.length > 0;
-    updateDirty();
+    setText("save-status", lastError || (busy ? t("applying") : justSaved ? t("saved") : dirty() ? t("unsaved") : ""));
+    $("save-status").className = `save-status${lastError ? " error" : justSaved ? " success" : ""}`;
   }
 
   function readStatus() {
-    const status = globalThis.__CLAUDE_SUBAGENT_ROUTER_STATUS__;
-    if (!status) return false;
-    lastRevision = status.revision || lastRevision;
-    notice(statusMessages());
+    status = globalThis.__CLAUDE_SUBAGENT_ROUTER_STATUS__;
+    if (status?.sync?.ok === false) return render();
+    if (status && status.revision > lastRevision) lastRevision = status.revision;
     render();
-    return true;
   }
 
   function refreshSnapshot(name) {
     return new Promise((resolve) => {
-      const script = node("script", { src: `${name}.js?r=${Date.now()}` });
+      const script = document.createElement("script");
+      script.src = `${name}.js?revision=${Date.now()}`;
       script.onload = () => { script.remove(); resolve(true); };
       script.onerror = () => { script.remove(); resolve(false); };
       document.head.append(script);
@@ -255,8 +264,6 @@
     busy = true;
     lastError = "";
     justSaved = false;
-    $("apply").disabled = true;
-    setText("save-status", t("applying"));
     render();
     const before = lastRevision;
     try {
@@ -275,13 +282,10 @@
       }
       if (lastRevision <= before) throw new Error("Magpie did not finish reloading the plugin");
       justSaved = true;
-      setText("save-status", t("saved"));
     } catch (error) {
       lastError = `${t("saveError")}: ${error.message || error}`;
-      setText("save-status", lastError);
     } finally {
       busy = false;
-      $("apply").disabled = false;
       render();
     }
   }
@@ -299,24 +303,17 @@
     draft = new Map(saved.models.map((row) => [row.model, { ...row, selected: true }]));
     catalog = globalThis.__CLAUDE_SUBAGENT_ROUTER_CATALOG__?.models || [];
     $("search").addEventListener("input", render);
-    $("routing-mode").addEventListener("change", () => {
-      mode = $("routing-mode").value;
-      justSaved = false;
-      lastError = "";
-      updateDirty();
-    });
-    $("filter-all").addEventListener("click", () => { selectedOnly = false; render(); });
-    $("filter-selected").addEventListener("click", () => { selectedOnly = true; render(); });
-    $("clear").addEventListener("click", () => { draft.clear(); selectedOnly = false; render(); });
-    $("reset").addEventListener("click", () => { mode = saved.mode; draft = new Map(saved.models.map((row) => [row.model, { ...row, selected: true }])); render(); });
+    $("routing-mode").addEventListener("change", () => { mode = $("routing-mode").value; justSaved = false; lastError = ""; render(); });
+    $("filter-all").addEventListener("click", () => { selectedOnly = false; translate(); });
+    $("filter-selected").addEventListener("click", () => { selectedOnly = true; translate(); });
+    $("clear").addEventListener("click", () => { draft.clear(); selectedOnly = false; justSaved = false; lastError = ""; translate(); });
+    $("reset").addEventListener("click", () => { mode = saved.mode; draft = new Map(saved.models.map((row) => [row.model, { ...row, selected: true }])); justSaved = false; lastError = ""; translate(); });
     $("apply").addEventListener("click", apply);
     translate();
     readStatus();
     magpie.onVisibility((visible) => {
       if (!visible || busy) return;
-      refreshSnapshot("status").then((ok) => {
-        if (ok) readStatus();
-      });
+      refreshSnapshot("status").then((ok) => { if (ok) readStatus(); });
       refreshSnapshot("catalog").then((ok) => {
         if (!ok) return;
         catalog = globalThis.__CLAUDE_SUBAGENT_ROUTER_CATALOG__?.models || [];

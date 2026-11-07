@@ -4,12 +4,12 @@ import fs from "node:fs";
 import vm from "node:vm";
 import { makePage } from "./dom.js";
 
-const ids = ["title", "subtitle", "language", "selected-count", "selected-label", "agent-count", "agent-label", "catalog-count", "catalog-label", "search-label", "search", "filter-all", "filter-selected", "clear", "notice", "models", "empty", "empty-title", "empty-text", "help", "save-status", "reset", "apply", "routing-mode", "routing-mode-label", "routing-mode-help"];
+const ids = ["title", "subtitle", "router-status", "router-status-text", "selected-count", "selected-label", "agent-count", "agent-label", "catalog-count", "catalog-label", "coverage-count", "coverage-label", "search-label", "search", "filter-all", "filter-selected", "clear", "notice", "models", "empty", "empty-title", "empty-text", "help", "save-status", "reset", "apply", "routing-mode", "routing-mode-label", "routing-mode-help", "pool-kicker", "pool-title", "pool-count", "coverage-title", "coverage-help", "coverage-fraction", "coverage-list", "workflow-kicker", "workflow-title", "workflow-list"];
 const source = fs.readFileSync(new URL("../page/app.js", import.meta.url), "utf8");
 
-async function setup(t, lang = "zh") {
+async function setup(t, lang = "zh", initialStatus = null, initialOptions = null) {
   const { document, elements } = makePage(ids);
-  let currentStatus = { revision: 1, catalog: { ok: true }, hook: { ok: true }, sync: { agents: [] } };
+  let currentStatus = initialStatus || { revision: 1, catalog: { ok: true }, hook: { ok: true }, sync: { agents: [] } };
   const writes = [];
   const themes = [];
   const context = {
@@ -31,10 +31,10 @@ async function setup(t, lang = "zh") {
       onAction: () => {},
       onVisibility: () => {},
       options: {
-        get: async () => ({ version: 1, models: [] }),
+        get: async () => initialOptions || ({ version: 1, models: [] }),
         set: async (options) => {
           writes.push(options);
-          currentStatus = { revision: currentStatus.revision + 1, catalog: { ok: true }, hook: { ok: true }, sync: { agents: options.models } };
+          currentStatus = { revision: currentStatus.revision + 1, catalog: { ok: true }, hook: { ok: true }, sync: { ok: true, agents: options.models } };
           return options;
         },
       },
@@ -83,7 +83,9 @@ test("Chinese UI supports multiple models, multiple roles, search, and apply", a
     { model: "provider/a", roles: ["fast", "implementation"] },
     { model: "group/b[1m]", roles: [] },
   ] }]);
-  assert.equal(elements.get("save-status").textContent, "已应用");
+  assert.equal(elements.get("save-status").textContent, "配置已应用");
+  assert.equal(elements.get("coverage-count").textContent, "2");
+  assert.equal(elements.get("coverage-list").queryAll((item) => item.className.includes("covered-role")).length, 2);
   assert.equal(elements.get("agent-count").textContent, "2");
 });
 
@@ -141,4 +143,29 @@ test("deselection does not create an unsaved phantom model", async (t) => {
   models(elements)[0].dispatch("change");
   assert.equal(elements.get("save-status").textContent, "");
   assert.equal(elements.get("reset").disabled, true);
+});
+
+test("a saved host snapshot replaces a stale issue without a phantom warning", async (t) => {
+  const { elements, writes } = await setup(t, "zh", {
+    revision: 1,
+    catalog: { ok: true }, hook: { ok: true },
+    sync: { ok: true, agents: [] },
+    issues: [{ model: "provider/a", kind: "stale" }],
+  }, { models: [{ model: "provider/a", roles: [] }] });
+  assert.equal(elements.get("models").queryAll((el) => el.className === "model-warning").length, 1);
+  const check = models(elements)[0];
+  check.checked = false;
+  check.dispatch("change");
+  assert.equal(elements.get("models").queryAll((el) => el.className === "model-warning").length, 0);
+  const replacement = models(elements)[1];
+  replacement.checked = true;
+  replacement.dispatch("change");
+  elements.get("apply").click();
+  await new Promise((resolve) => {
+    const wait = () => elements.get("apply").disabled ? setTimeout(wait, 20) : resolve();
+    wait();
+  });
+  assert.equal(writes.length, 1);
+  assert.equal(elements.get("models").queryAll((el) => el.className === "model-warning").length, 0);
+  assert.equal(elements.get("agent-count").textContent, "1");
 });

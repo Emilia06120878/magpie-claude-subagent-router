@@ -5,6 +5,7 @@ import { claudeConfigDir } from "./lib/paths.js";
 import { readCatalog } from "./lib/catalog.js";
 import { writePageSnapshot } from "./lib/atomic.js";
 import { syncAgents } from "./lib/sync.js";
+import { agentName } from "./lib/agents.js";
 import { syncHook } from "./lib/hook-config.js";
 
 const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -33,6 +34,11 @@ export async function runPlugin(input, options, env = process.env, pageDir = PAG
   const status = {
     catalog: { ok: catalog.ok, reason: catalog.reason, count: catalog.models.length },
     sync,
+    issues: configuration.models.filter((row) => !sync.agents.some((agent) => agent.model === row.model)).map((row) => {
+      const filename = `${agentName(row.model)}.md`;
+      const kind = sync.conflicts.includes(filename) ? "conflict" : sync.modified.includes(filename) ? "modified" : "stale";
+      return { model: row.model, kind };
+    }),
     hook,
     revision: Date.now(),
   };
