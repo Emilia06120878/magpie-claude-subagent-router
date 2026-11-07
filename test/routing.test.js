@@ -27,7 +27,7 @@ function activeRoute(t) {
   return { dir, config, route: readRoute(dir) };
 }
 
-test("strict routing intercepts omitted and general-purpose delegation only", (t) => {
+test("strict routing intercepts omitted and general-purpose delegation", (t) => {
   const { route } = activeRoute(t);
   for (const toolInput of [{ prompt: "work" }, { prompt: "work", subagent_type: "general-purpose" }]) {
     const result = routingDecision(toolInput, route);
@@ -36,9 +36,40 @@ test("strict routing intercepts omitted and general-purpose delegation only", (t
     assert.match(result.hookSpecificOutput.permissionDecisionReason, /group\/reasoning\[1m\]/);
     assert.equal(result.hookSpecificOutput.updatedInput, undefined);
   }
-  for (const subagent_type of [agentName("provider/fast"), "Explore", "Plan", "custom-agent"]) {
-    assert.equal(routingDecision({ subagent_type }, route), null);
+  assert.equal(routingDecision({ subagent_type: agentName("provider/fast") }, route), null);
+});
+
+test("strict routing intercepts OMC named agents even when their model is pinned", (t) => {
+  const { route } = activeRoute(t);
+  for (const name of ["planner", "oh-my-claudecode:planner", "executor", "oh-my-claudecode:executor", "writer", "oh-my-claudecode:writer"]) {
+    for (const input of [{ subagent_type: name }, { subagent_type: name, model: "inherit" }]) {
+      const result = routingDecision(input, route);
+      assert.equal(result.hookSpecificOutput.permissionDecision, "deny", name);
+      assert.match(result.hookSpecificOutput.permissionDecisionReason, /pinned Claude model|model definition/);
+      assert.match(result.hookSpecificOutput.permissionDecisionReason, /router-/);
+      assert.equal(result.hookSpecificOutput.updatedInput, undefined);
+    }
+    assert.equal(routingDecision({ subagent_type: name }, { ...route, mode: "prefer" }), null);
   }
+});
+
+test("strict routing allows only generated pool agents among named types", (t) => {
+  const { route } = activeRoute(t);
+  for (const subagent_type of ["Explore", "Plan", "custom-agent", "oh-my-claudecode:code-reviewer", "general-purpose:reviewer"]) {
+    const result = routingDecision({ subagent_type }, route);
+    assert.equal(result.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(result.hookSpecificOutput.permissionDecisionReason, /Select a generated router agent/);
+  }
+  for (const name of ["planner", "executor", "writer", "code-reviewer"]) {
+    const result = routingDecision({ subagent_type: `oh-my-claudecode:${name}` }, route);
+    assert.equal(result.hookSpecificOutput.permissionDecision, "deny");
+  }
+  for (const model of ["inherit", "provider/fast", "group/reasoning[1m]"]) {
+    assert.equal(routingDecision({ subagent_type: agentName("provider/fast"), model }, route), null);
+  }
+  const override = routingDecision({ subagent_type: agentName("provider/fast"), model: "sonnet" }, route);
+  assert.equal(override.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(override.hookSpecificOutput.permissionDecisionReason, /supplies a model/);
 });
 
 test("default delegation cannot bypass the router with direct Claude models", (t) => {
@@ -66,11 +97,12 @@ test("default delegation cannot bypass the router with direct Claude models", (t
   }
   for (const toolInput of [
     { subagent_type: "custom-agent", model: "claude-sonnet" },
-    { subagent_type: agentName("provider/fast"), model: "claude-sonnet" },
     { subagent_type: "custom-agent" },
   ]) {
-    assert.equal(routingDecision(toolInput, route), null);
+    assert.equal(routingDecision(toolInput, { ...route, mode: "prefer" }), null);
+    assert.equal(routingDecision(toolInput, route).hookSpecificOutput.permissionDecision, "deny");
   }
+  assert.equal(routingDecision({ subagent_type: agentName("provider/fast"), model: "claude-sonnet" }, route).hookSpecificOutput.permissionDecision, "deny");
 });
 
 test("prefer mode allows explicit general-purpose; empty or invalid state fails open", (t) => {
@@ -186,7 +218,7 @@ test("manual cleanup preserves edited agents and other Claude definitions", (t) 
 });
 
 test("real Node command hook reads stdin, routes Agent and Task, and fails open", (t) => {
-  const { dir } = activeRoute(t);
+  const { dir, route } = activeRoute(t);
   const hook = fileURLToPath(new URL("../hook.js", import.meta.url));
   const run = (input) => spawnSync(process.execPath, [hook], {
     input: JSON.stringify(input), encoding: "utf8",
@@ -197,7 +229,16 @@ test("real Node command hook reads stdin, routes Agent and Task, and fails open"
     assert.equal(result.status, 0, result.stderr);
     assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
   }
-  assert.equal(run({ tool_name: "Agent", tool_input: { subagent_type: "Explore" } }).stdout, "");
+  for (const toolInput of [
+    { subagent_type: "Explore" },
+    { subagent_type: "oh-my-claudecode:executor" },
+  ]) {
+    const result = run({ tool_name: "Agent", tool_input: toolInput });
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  }
+  fs.writeFileSync(routePath(dir), JSON.stringify({ ...route, mode: "prefer" }));
+  assert.equal(run({ tool_name: "Agent", tool_input: { subagent_type: "oh-my-claudecode:executor" } }).stdout, "");
+  fs.writeFileSync(routePath(dir), JSON.stringify(route));
   assert.equal(run({ tool_name: "Bash", tool_input: {} }).stdout, "");
   const startup = run({ hook_event_name: "SessionStart" });
   assert.equal(startup.status, 0, startup.stderr);
